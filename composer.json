@@ -1,16 +1,20 @@
 {
     "type": "library",
-    "name": "locomotivemtl/charcoal-contrib-foobar",
-    "description": "Charcoal service provider for my cool feature.",
+    "name": "locomotivemtl/charcoal-contrib-filepond",
+    "description": "Charcoal filepond server adaptor",
     "keywords": [
         "charcoal"
     ],
-    "homepage": "https://locomotivemtl.github.io/charcoal-contrib-foobar/",
+    "homepage": "https://locomotivemtl.github.io/charcoal-contrib-filepond/",
     "license": "MIT",
     "authors": [
         {
             "name": "Locomotive",
             "homepage": "https://locomotive.ca"
+        },
+        {
+            "name": "Joel",
+            "email": "joel@locomotive.ca"
         }
     ],
     "minimum-stability": "dev",
