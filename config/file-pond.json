@@ -1,0 +1,6 @@
+{
+    "server_end_point": "/file-pond",
+    "filesystem_ident": "private",
+    "upload_path": "uploads/file-pond",
+    "transfer_dir": "tmp/file-pond"
+}

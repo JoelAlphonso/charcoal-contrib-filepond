@@ -2,6 +2,7 @@
 
 namespace Charcoal\FilePond\ServiceProvider;
 
+use Charcoal\FilePond\FilePondConfig;
 use Charcoal\FilePond\Service\FilePondService;
 
 // from 'pimple'
@@ -26,10 +27,24 @@ class FilePondServiceProvider implements ServiceProviderInterface
     {
         /**
          * @param Container $container The Pimple DI container.
+         * @return FilePondConfig
+         */
+        $container['file-pond/config'] = function (Container $container) {
+            // $appConfig = $container['config'];
+            return new FilePondConfig();
+        };
+
+        /**
+         * @param Container $container The Pimple DI container.
          * @return FilePondService
          */
         $container['file-pond/service'] = function (Container $container) {
-            return new FilePondService($container);
+            return new FilePondService(
+                $container['file-pond/config'],
+                $container['filesystem/config'],
+                $container['filesystem/manager'],
+                $container['filesystems']
+            );
         };
     }
 }

@@ -3,6 +3,9 @@
 namespace Charcoal\FilePond\Service;
 
 // from 'charcoal-contrib-filepond'
+use Charcoal\App\Config\FilesystemConfig;
+use Charcoal\Config\ConfigInterface;
+use Charcoal\FilePond\FilePondConfig;
 use Charcoal\FilePond\Service\Helper\FilesystemAwareTrait;
 use Charcoal\FilePond\Service\Helper\Post;
 use Charcoal\FilePond\Service\Helper\Transfer;
@@ -12,12 +15,11 @@ use League\Flysystem\Adapter\AbstractAdapter;
 use League\Flysystem\AdapterInterface;
 use League\Flysystem\FileNotFoundException;
 use League\Flysystem\FilesystemInterface;
+use League\Flysystem\MountManager;
 use League\Flysystem\Util;
 
-// from 'pimple'
-use Pimple\Container;
-
 // from 'Psr-7'
+use Pimple\Container;
 use Psr\Http\Message\RequestInterface;
 
 /**
@@ -26,8 +28,6 @@ use Psr\Http\Message\RequestInterface;
 class FilePondService
 {
     use FilesystemAwareTrait;
-
-    const FILESYSTEM = 'private';
 
     // name to use for the file metadata object
     const METADATA_FILENAME = '.metadata';
@@ -38,28 +38,89 @@ class FilePondService
     private $currentFilesystem;
 
     /**
+     * @var FilesystemInterface $targetFilesystem
+     */
+    private $targetFilesystem;
+
+    /**
+     * @var string $currentFilesystemIdent
+     */
+    private $currentFilesystemIdent;
+
+    /**
+     * @var string $targetFilesystemIdent
+     */
+    private $targetFilesystemIdent;
+
+    /**
      * @var AdapterInterface|AbstractAdapter $currentFileApapter
      */
     private $currentFileAdapter;
 
     /**
-     * @param Container $container A dependencies container instance.
+     * @var FilePondConfig $config
      */
-    public function __construct(Container $container)
+    private $config;
+
+    /**
+     * FilePondService constructor.
+     * @param ConfigInterface|FilePondConfig   $config           The service Config.
+     * @param ConfigInterface|FilesystemConfig $filesystemConfig The Filesystem Config.
+     * @param MountManager|FilesystemInterface $mountManager     The Filesystem MountManager.
+     * @param Container|FilesystemInterface[]  $filesystems      The available filesystems.
+     */
+    public function __construct($config, $filesystemConfig, $mountManager, Container $filesystems)
     {
         /** @see \Charcoal\App\ServiceProvider\FilesystemServiceProvider */
-        $this->filesystemConfig = $container['filesystem/config'];
-        $this->filesystems      = $container['filesystems'];
+        $this->config = $config;
+
+        /** @see \Charcoal\App\ServiceProvider\FilesystemServiceProvider */
+        $this->filesystemConfig = $filesystemConfig;
+        $this->mountManager = $mountManager;
+        $this->filesystems = $filesystems;
+
+        // Default to config filesystem.
+        $this->setCurrentFilesystem($this->config->filesystemIdent());
     }
 
     /**
      * @return FilesystemInterface|null
      */
-    protected function currentFilesystem()
+    public function currentFilesystem()
     {
-        $this->currentFilesystem = $this->currentFilesystem ?: $this->getFilesystem(self::FILESYSTEM);
-
         return $this->currentFilesystem;
+    }
+
+    /**
+     * @param string $ident Files system ident.
+     * @return self
+     */
+    public function setCurrentFilesystem($ident)
+    {
+        $this->currentFilesystem = $this->getFilesystem($ident);
+        $this->currentFilesystemIdent = $ident;
+
+        return $this;
+    }
+
+    /**
+     * @return FilesystemInterface
+     */
+    public function targetFilesystem()
+    {
+        return $this->targetFilesystem;
+    }
+
+    /**
+     * @param string $ident TargetFilesystem for FilePondService.
+     * @return self
+     */
+    public function setTargetFilesystem($ident)
+    {
+        $this->targetFilesystem = $this->getFilesystem($ident);
+        $this->targetFilesystemIdent = $ident;
+
+        return $this;
     }
 
     /**
@@ -67,7 +128,8 @@ class FilePondService
      */
     protected function currentFileAdapter()
     {
-        $this->currentFileAdapter = $this->currentFileAdapter ?: $this->currentFilesystem()->getAdapter();
+        $this->currentFileAdapter = ($this->currentFileAdapter) ?:
+            $this->currentFilesystem()->getAdapter();
 
         return $this->currentFileAdapter;
     }
@@ -186,7 +248,7 @@ class FilePondService
     public function storeTransfer($path, Transfer $transfer)
     {
         // create transfer directory
-        $path       = $path.DIRECTORY_SEPARATOR.$transfer->getId();
+        $path = $path.DIRECTORY_SEPARATOR.$transfer->getId();
         $filesystem = $this->currentFilesystem();
 
         if (!$filesystem->has($path)) {
@@ -202,7 +264,7 @@ class FilePondService
 
         // store main file
         $files = $transfer->getFiles();
-        $file  = $files[0];
+        $file = $files[0];
 
         $this->moveFile($file, $path);
 
@@ -262,6 +324,21 @@ class FilePondService
             $this->currentFilesystem()->delete($filePath);
         }
 
+        if (!empty($this->targetFilesystemIdent) &&
+            $this->targetFilesystemIdent !== $this->currentFilesystemIdent
+        ) {
+            $success = $this->mountManager->copy(
+                $this->currentFilesystemIdent.'://'.$file['tmp_name'],
+                $this->targetFilesystemIdent.'://'.$filePath
+            );
+
+            if ($success) {
+                $this->currentFilesystem()->delete($file['tmp_name']);
+            }
+
+            return $success;
+        }
+
         return $this->currentFilesystem()->rename($file['tmp_name'], $filePath);
     }
 
@@ -272,7 +349,7 @@ class FilePondService
      */
     private function moveTempFile(array $file, $path)
     {
-        return move_uploaded_file($file['tmp_name'], $this->currentFilesystem()->getAdapter()->applyPathPrefix(
+        return move_uploaded_file($file['tmp_name'], $this->currentFileAdapter()->applyPathPrefix(
             Util::normalizePath($path.DIRECTORY_SEPARATOR.$file['name'])
         ));
     }
@@ -301,9 +378,9 @@ class FilePondService
         }
 
         $transfer = new Transfer($id);
-        $path     = $path.DIRECTORY_SEPARATOR.$id;
+        $path = $path.DIRECTORY_SEPARATOR.$id;
 
-        $file     = $this->getFile($path, '*.*');
+        $file = $this->getFile($path, '*.*');
         $metadata = $this->getFile($path, self::METADATA_FILENAME);
         //TODO get file variants if implemented.
 
@@ -316,11 +393,12 @@ class FilePondService
     // ==========================================================================
 
     /**
-     * @param string $path    The file path.
-     * @param string $pattern The file pattern.
+     * @param string      $path       The file path.
+     * @param string      $pattern    The file pattern.
+     * @param string|null $filesystem The filesystem ident to use.
      * @return array
      */
-    private function getFiles($path, $pattern = null)
+    private function getFiles($path, $pattern = null, $filesystem = null)
     {
         $results = [];
 
@@ -328,7 +406,13 @@ class FilePondService
             $path = $path.DIRECTORY_SEPARATOR.$pattern;
         }
 
-        $files = glob($this->currentFileAdapter()->applyPathPrefix($path));
+        if ($filesystem) {
+            $files = glob($this->getFilesystem($filesystem)
+                               ->getAdapter()
+                               ->applyPathPrefix($path));
+        } else {
+            $files = glob($this->currentFileAdapter()->applyPathPrefix($path));
+        }
 
         foreach ($files as $file) {
             $results[] = $this->createFileObject($file);
@@ -338,26 +422,32 @@ class FilePondService
     }
 
     /**
-     * @param string $path    The file path.
-     * @param string $pattern The file pattern.
+     * @param string      $path       The file path.
+     * @param string      $pattern    The file pattern.
+     * @param string|null $filesystem The filesystem ident to use.
      * @return mixed|void
      */
-    public function getFile($path, $pattern = null)
+    public function getFile($path, $pattern = null, $filesystem = null)
     {
-        $result = $this->getFiles($path, $pattern);
+        $result = $this->getFiles($path, $pattern, $filesystem);
         if (count($result) > 0) {
             return $result[0];
         }
     }
 
     /**
-     * @param string $filename The filename.
+     * @param string      $filename   The filename.
+     * @param string|null $filesystem The filesystem ident to use.
      * @return array
      */
-    private function createFileObject($filename)
+    private function createFileObject($filename, $filesystem = null)
     {
+        $adapter = $filesystem ?
+            $this->getFilesystem($filesystem)->getAdapter() :
+            $this->currentFileAdapter();
+
         return [
-            'tmp_name' => $this->currentFileAdapter()->removePathPrefix($filename),
+            'tmp_name' => $adapter->removePathPrefix($filename),
             'name'     => basename($filename),
             'type'     => mime_content_type($filename),
             'length'   => filesize($filename),
@@ -375,8 +465,8 @@ class FilePondService
 
         try {
             $content = $fs->readStream($filename);
-            $type    = $fs->getMimetype($filename);
-            $size    = $fs->getSize($filename);
+            $type = $fs->getMimetype($filename);
+            $size = $fs->getSize($filename);
         } catch (FileNotFoundException $e) {
             //Add some logging.
 

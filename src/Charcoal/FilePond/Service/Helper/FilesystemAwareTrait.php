@@ -4,6 +4,7 @@ namespace Charcoal\FilePond\Service\Helper;
 
 use Charcoal\App\Config\FilesystemConfig;
 use League\Flysystem\FilesystemInterface;
+use League\Flysystem\MountManager;
 
 /**
  * Trait FilesystemAwareTrait
@@ -24,6 +25,13 @@ trait FilesystemAwareTrait
      * @var FilesystemConfig
      */
     protected $filesystemConfig;
+
+    /**
+     * Store the filesystem MountManager.
+     *
+     * @var MountManager|FilesystemInterface
+     */
+    protected $mountManager;
 
     /**
      * Get the named filesystem object.

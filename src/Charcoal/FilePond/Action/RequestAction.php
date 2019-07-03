@@ -3,12 +3,12 @@
 namespace Charcoal\FilePond\Action;
 
 // from 'charcoal-contrib-filepond'
+use Charcoal\FilePond\FilePondConfig;
 use Charcoal\FilePond\Service\Helper\Transfer;
 use Charcoal\FilePond\Service\FilePondService;
 
 // from charcoal-app
 use Charcoal\App\Action\AbstractAction;
-
 
 use InvalidArgumentException;
 use Pimple\Container;
@@ -26,8 +26,10 @@ class RequestAction extends AbstractAction
      */
     private $filePondService;
 
-    const TRANSFER_DIR = 'file-pond/tmp';
-    const UPLOAD_DIR = 'file-pond/uploads';
+    /**
+     * @var FilePondConfig $config
+     */
+    private $config;
 
     const HANDLERS = [
         'FILE_TRANSFER'        => 'handleFileTransfer',
@@ -51,6 +53,7 @@ class RequestAction extends AbstractAction
         parent::setDependencies($container);
 
         $this->filePondService = $container['file-pond/service'];
+        $this->config = $container['file-pond/config'];
     }
 
     /**
@@ -95,7 +98,7 @@ class RequestAction extends AbstractAction
             return $response->withStatus(400);
         }
         // store files
-        $this->filePondService->storeTransfer(self::TRANSFER_DIR, $transfer);
+        $this->filePondService->storeTransfer($this->config->transferDir(), $transfer);
 
         // returns plain text content
         $response->getBody()->write($transfer->getId());
@@ -117,7 +120,7 @@ class RequestAction extends AbstractAction
         }
 
         // remove transfer directory
-        $this->filePondService->removeTransferDirectory(self::TRANSFER_DIR, $id);
+        $this->filePondService->removeTransferDirectory($this->config->transferDir(), $id);
 
         // no content to return
         return $response->withStatus(204);
@@ -146,7 +149,7 @@ class RequestAction extends AbstractAction
         }
 
         $this->setMode('inline');
-        $stream      = new Stream($file['content']);
+        $stream = new Stream($file['content']);
         $disposition = $this->generateHttpDisposition('inline', $file['name']);
 
         // Allow to read Content Disposition (so we can read the file name on the client side)
