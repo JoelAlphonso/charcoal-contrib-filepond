@@ -30,8 +30,8 @@ class FilePondServiceProvider implements ServiceProviderInterface
          * @return FilePondConfig
          */
         $container['file-pond/config'] = function (Container $container) {
-            // $appConfig = $container['config'];
-            return new FilePondConfig();
+            $config = $container['config']->get('contrib.file-pond.config') ?: [];
+            return new FilePondConfig($config);
         };
 
         /**

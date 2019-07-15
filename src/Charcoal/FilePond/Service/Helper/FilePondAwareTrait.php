@@ -77,7 +77,6 @@ trait FilePondAwareTrait
                 }
 
                 $this->setFilePondUploadPath($uploadPath);
-                error_log(var_export($property->filesystem(), true));
                 $this->filePondService()->setTargetFilesystem($property->filesystem());
             }
         }
