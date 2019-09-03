@@ -70,14 +70,14 @@ trait FilePondAwareTrait
             if ($property instanceof PropertyInterface &&
                 $property instanceof FileProperty
             ) {
-                $uploadPath = $property->uploadPath();
+                $uploadPath = $property['uploadPath'];
 
                 if ($pathSuffix !== null) {
                     $uploadPath .= rtrim($pathSuffix, '/\t');
                 }
 
                 $this->setFilePondUploadPath($uploadPath);
-                $this->filePondService()->setTargetFilesystem($property->filesystem());
+                $this->filePondService()->setTargetFilesystem($property['filesystem']);
             }
         }
 
