@@ -52,10 +52,10 @@ class FilePondConfig extends AbstractConfig
      */
     public function defaults()
     {
-        $baseDir = rtrim(realpath(__DIR__.'/../../../'), '/');
-        $confDir = $baseDir.'/config';
+        $baseDir = rtrim(realpath(__DIR__ . '/../../../'), '/');
+        $confDir = $baseDir . '/config';
 
-        $filePondConfig = $this->loadFile($confDir.'/file-pond.json');
+        $filePondConfig = $this->loadFile($confDir . '/file-pond.json');
 
         return $filePondConfig;
     }

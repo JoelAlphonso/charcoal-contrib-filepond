@@ -50,7 +50,7 @@ class FilePondModule extends AbstractModule
             ));
         }
 
-        $serverEndPoint = '/'.ltrim($serverEndPoint, '\/ ');
+        $serverEndPoint = '/' . ltrim($serverEndPoint, '\/ ');
 
         $this->app()->group(rtrim($serverEndPoint, '/'), function (App $app) {
             $app->get('', function (Request $request, Response $response) {

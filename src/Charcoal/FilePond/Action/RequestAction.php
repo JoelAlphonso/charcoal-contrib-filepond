@@ -64,7 +64,7 @@ class RequestAction extends AbstractAction
     {
         $handler = $this->filePondService->parseApiRequest($request);
 
-        if (key_exists($handler['ident'], self::HANDLERS)) {
+        if (array_key_exists($handler['ident'], self::HANDLERS)) {
             return call_user_func(
                 [$this, self::HANDLERS[$handler['ident']]],
                 $handler['data'],
@@ -139,9 +139,7 @@ class RequestAction extends AbstractAction
             return $response->withStatus(500);
         }
 
-        if (!$file || empty($file)) {
-
-        }
+        // if (!$file || empty($file)) {}
 
         $this->setMode('inline');
         $stream = new Stream($file['content']);

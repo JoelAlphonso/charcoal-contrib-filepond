@@ -248,7 +248,7 @@ class FilePondService
     public function storeTransfer($path, Transfer $transfer)
     {
         // create transfer directory
-        $path = $path.DIRECTORY_SEPARATOR.$transfer->getId();
+        $path = $path . DIRECTORY_SEPARATOR . $transfer->getId();
         $filesystem = $this->currentFilesystem();
 
         if (!$filesystem->has($path)) {
@@ -257,7 +257,7 @@ class FilePondService
         // store metadata
         if ($transfer->getMetadata()) {
             $filesystem->write(
-                $path.DIRECTORY_SEPARATOR.self::METADATA_FILENAME,
+                $path . DIRECTORY_SEPARATOR . self::METADATA_FILENAME,
                 @json_encode($transfer->getMetadata())
             );
         }
@@ -304,7 +304,7 @@ class FilePondService
 
         //@TODO remove the variant container if implemented
 
-        return $this->removeDirectory($path.DIRECTORY_SEPARATOR.$id);
+        return $this->removeDirectory($path . DIRECTORY_SEPARATOR . $id);
     }
 
     /**
@@ -318,7 +318,7 @@ class FilePondService
             return $this->moveTempFile($file, $path);
         }
 
-        $filePath = $path.DIRECTORY_SEPARATOR.$file['name'];
+        $filePath = $path . DIRECTORY_SEPARATOR . $file['name'];
         // OVERWRITE FILES
         if ($this->currentFilesystem()->has($filePath)) {
             $this->currentFilesystem()->delete($filePath);
@@ -328,8 +328,8 @@ class FilePondService
             $this->targetFilesystemIdent !== $this->currentFilesystemIdent
         ) {
             $success = $this->mountManager->copy(
-                $this->currentFilesystemIdent.'://'.$file['tmp_name'],
-                $this->targetFilesystemIdent.'://'.$filePath
+                $this->currentFilesystemIdent . '://' . $file['tmp_name'],
+                $this->targetFilesystemIdent . '://' . $filePath
             );
 
             if ($success) {
@@ -350,7 +350,7 @@ class FilePondService
     private function moveTempFile(array $file, $path)
     {
         return move_uploaded_file($file['tmp_name'], $this->currentFileAdapter()->applyPathPrefix(
-            Util::normalizePath($path.DIRECTORY_SEPARATOR.$file['name'])
+            Util::normalizePath($path . DIRECTORY_SEPARATOR . $file['name'])
         ));
     }
 
@@ -378,7 +378,7 @@ class FilePondService
         }
 
         $transfer = new Transfer($id);
-        $path = $path.DIRECTORY_SEPARATOR.$id;
+        $path = $path . DIRECTORY_SEPARATOR . $id;
 
         $file = $this->getFile($path, '*.*');
         $metadata = $this->getFile($path, self::METADATA_FILENAME);
@@ -403,7 +403,7 @@ class FilePondService
         $results = [];
 
         if ($pattern) {
-            $path = $path.DIRECTORY_SEPARATOR.$pattern;
+            $path = $path . DIRECTORY_SEPARATOR . $pattern;
         }
 
         if ($filesystem) {

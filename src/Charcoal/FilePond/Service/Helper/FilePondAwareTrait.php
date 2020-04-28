@@ -134,7 +134,7 @@ trait FilePondAwareTrait
         $files = $transfer->getFiles(null);
         foreach ($files as $file) {
             if ($this->filePondService()->moveFile($file, $this->filePondUploadPath())) {
-                $out[] = $this->filePondUploadPath().DIRECTORY_SEPARATOR.$file['name'];
+                $out[] = $this->filePondUploadPath() . DIRECTORY_SEPARATOR . $file['name'];
             }
         }
         // remove transfer directory
@@ -167,7 +167,7 @@ trait FilePondAwareTrait
             $files = $transfer->getFiles(null);
             foreach ($files as $file) {
                 if ($this->filePondService()->moveFile($file, $this->filePondUploadPath())) {
-                    $out[] = $this->filePondUploadPath().DIRECTORY_SEPARATOR.$file['name'];
+                    $out[] = $this->filePondUploadPath() . DIRECTORY_SEPARATOR . $file['name'];
                 }
             }
             // remove transfer directory
