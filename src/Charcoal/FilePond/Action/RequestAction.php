@@ -38,22 +38,17 @@ class RequestAction extends AbstractAction
     ];
 
     /**
-     * Give an opportunity to children classes to inject dependencies from a Pimple Container.
-     *
-     * Does nothing by default, reimplement in children classes.
-     *
-     * The `$container` DI-container (from `Pimple`) should not be saved or passed around, only to be used to
-     * inject dependencies (typically via setters).
-     *
-     * @param Container $container A dependencies container instance.
-     * @return void
+     * Section constructor.
+     * @param array $data Init data.
      */
-    protected function setDependencies(Container $container)
+    public function __construct(array $data = null)
     {
-        parent::setDependencies($container);
+        parent::__construct($data);
 
-        $this->filePondService = $container['file-pond/service'];
-        $this->config = $container['file-pond/config'];
+        if (isset($data['config']) && $data['config'] instanceof FilePondConfig) {
+            $this->config = $data['config'];
+        }
+        $this->filePondService  = $data['filePondService'];
     }
 
     /**

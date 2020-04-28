@@ -57,8 +57,8 @@ class FilePondModule extends AbstractModule
                 /** @var Container $container */
                 $container = $this;
                 $action = new RequestAction([
-                    'logger' => $container['logger'],
-                    'container' => $container,
+                    'logger'            => $container['logger'],
+                    'filePondService'   => $container['file-pond/service'],
                 ]);
 
                 return $action($request, $response);
@@ -67,8 +67,9 @@ class FilePondModule extends AbstractModule
                 /** @var Container $container */
                 $container = $this;
                 $action = new RequestAction([
-                    'logger' => $container['logger'],
-                    'container' => $container,
+                    'logger'            => $container['logger'],
+                    'config'            => $container['file-pond/config'],
+                    'filePondService'   => $container['file-pond/service'],
                 ]);
 
                 return $action($request, $response);
@@ -78,8 +79,9 @@ class FilePondModule extends AbstractModule
                 /** @var Container $container */
                 $container = $this;
                 $action = new RequestAction([
-                    'logger' => $container['logger'],
-                    'container' => $container,
+                    'logger'            => $container['logger'],
+                    'config'            => $container['file-pond/config'],
+                    'filePondService'   => $container['file-pond/service'],
                 ]);
 
                 return $action($request, $response);
