@@ -62,16 +62,24 @@ Then add the module to your project's module list like so:
 
 ## Service Provider
 
-### Parameters
+Charcoal\FilePond\ServiceProvider\FilePondServiceProvider
 
---TBD--
-
-
+The service provider is automatically instantiated by the module.
 
 ### Services
 
-Charcoal\FilePond\Service\FilePond
-
+-   [FilePondService.php](src/Charcoal/FilePond/Service/FilePondService.php)
+    FilePondService can be invoked with a server config ident to bind it to a server when needed : 
+    
+    ```php
+    $action = new RequestAction([
+        'logger'          => $container['logger'],
+        'filePondService' => $container['file-pond/service']($serverIdent),
+    ]);
+    ```
+    
+-   [FilePondConfig.php](src/Charcoal/FilePond/FilePondConfig.php)
+ 
 
 
 ## Configuration
@@ -80,11 +88,16 @@ The configuration for FilePond can be found here : [FilePondConfig.php](src/Char
 
 It uses the config file [file-pond.json](config/file-pond.json) as default configset and can be overridden in your project's config.
 
+**getServer($ident)** and **getServers()** can be called on the config to retrieve server configuration(s) : [ServerConfig.php](src/Charcoal/FilePond/ServerConfig.php)
 
-### Configuration options.
+The config defines a list of servers :
+
+A server is a combination of an endpoint mapped with a filesystem and information regarding file paths.
+
+### Server options.
 | Option           | Description                                                                                                                                                                                                                                                                                     | Default value     |
 |:-----------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:------------------|
-| server_end_point | The server endpoint url for the front-end app. Feeds the __server__ option of FilePond.js                                                                                                                                                                                                       | /file-pond        |
+| route            | The server endpoint url for the front-end app. Feeds the __server__ option of FilePond.js                                                                                                                                                                                                       | /file-pond        |
 | filesystem_ident | Which **Filesystem** to use. See [charcoal-app](https://github.com/locomotivemtl/charcoal-app/blob/e2e8af2eb6001da6d75ea100d191f73365f1ff77/src/Charcoal/App/ServiceProvider/FilesystemServiceProvider.php#L45).                                                                                | private           |
 | upload_path      | The definitive upload path root for files once the submission is completed. This path can be overridden in the submission action. The Helper [FilePondAwareTrait](src/Charcoal/FilePond/Service/Helper/FilePondAwareTrait) will attempt to save the upload using the property's **upload_path** | uploads/file-pond |
 | transfer_dir     | The temporary file-pond folder root. Used while processing front-end file upload. Files from this directory will be transferred to there final location after the submission is completed.                                                                                                      | tmp/file-pond     |
@@ -100,17 +113,27 @@ Overrides the Module Config as needed by copying the [file-pond.json](config/fil
     "contrib": {
         "file-pond": {
             "config": {
-                "server_end_point": "/file-pond",
-                "filesystem_ident": "private",
-                "upload_path": "uploads/file-pond",
-                "transfer_dir": "tmp/file-pond"
+                "servers": {
+                    "default": {
+                        "route": "/file-pond",
+                        "filesystem_ident": "private",
+                        "upload_path": "uploads/file-pond",
+                        "transfer_dir": "tmp/file-pond"
+                    },
+                    "s3": {
+                        "route": "/file-pond/s3",
+                        "filesystem_ident": "s3",
+                        "upload_path": "uploads/file-pond",
+                        "transfer_dir": "tmp/file-pond"
+                    }
+                }
             }
         }
     }
 }
 ```
 
-Set a **server_end_point** to give to the FilePond.js front-end framework. A slim route will automatically be created using the desired pattern.
+Set a **route** to give to the FilePond.js front-end framework. A slim route will automatically be created using the desired pattern.
 Once that is done, configure the front-end file-pond module using the correct FilePond documentation.
 -   [FilePond vanilla installation](https://pqina.nl/filepond/docs/patterns/installation/)
 -   [FilePond vanilla documentation](https://pqina.nl/filepond/docs/patterns/api/filepond-object/#creating-a-filepond-instance)
@@ -145,8 +168,7 @@ class SomeAction extends AbstractAction
     {
         parent::setDependencies($container);
 
-        $this->setFilePondConfig($container['file-pond/config']);
-        $this->setFilePondService($container['file-pond/service']);
+        $this->setFilePondService($container['file-pond/service']('private'));
     }
 }
 ```
