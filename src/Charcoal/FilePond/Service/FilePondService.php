@@ -6,6 +6,7 @@ namespace Charcoal\FilePond\Service;
 use Charcoal\App\Config\FilesystemConfig;
 use Charcoal\Config\ConfigInterface;
 use Charcoal\FilePond\FilePondConfig;
+use Charcoal\FilePond\ServerConfig;
 use Charcoal\FilePond\Service\Helper\FilesystemAwareTrait;
 use Charcoal\FilePond\Service\Helper\Post;
 use Charcoal\FilePond\Service\Helper\Transfer;
@@ -63,6 +64,13 @@ class FilePondService
     private $config;
 
     /**
+     * The server configuration.
+     *
+     * @var ServerConfig|ConfigInterface
+     */
+    private $server;
+
+    /**
      * FilePondService constructor.
      * @param ConfigInterface|FilePondConfig   $config           The service Config.
      * @param ConfigInterface|FilesystemConfig $filesystemConfig The Filesystem Config.
@@ -76,11 +84,48 @@ class FilePondService
 
         /** @see \Charcoal\App\ServiceProvider\FilesystemServiceProvider */
         $this->filesystemConfig = $filesystemConfig;
-        $this->mountManager = $mountManager;
-        $this->filesystems = $filesystems;
+        $this->mountManager     = $mountManager;
+        $this->filesystems      = $filesystems;
+
+        // Default server
+        $this->setServer('default');
+        $this->setCurrentFilesystem($this->getServer()->filesystemIdent());
+    }
+
+    /**
+     * The __invoke method is called when a script tries to call an object as a function.
+     *
+     * @param string $server The server identifier to use.
+     * @return mixed
+     * @link https://php.net/manual/en/language.oop5.magic.php#language.oop5.magic.invoke
+     */
+    public function __invoke($server)
+    {
+        $this->setServer($server);
 
         // Default to config filesystem.
-        $this->setCurrentFilesystem($this->config->filesystemIdent());
+        $this->setCurrentFilesystem($this->getServer()->filesystemIdent());
+
+        return $this;
+    }
+
+    /**
+     * @return ServerConfig|ConfigInterface
+     */
+    public function getServer(): ConfigInterface
+    {
+        return $this->server;
+    }
+
+    /**
+     * @param string $server Server for FilePondService.
+     * @return self
+     */
+    public function setServer($server)
+    {
+        $this->server = $this->config->getServer($server);
+
+        return $this;
     }
 
     /**
@@ -97,7 +142,7 @@ class FilePondService
      */
     public function setCurrentFilesystem($ident)
     {
-        $this->currentFilesystem = $this->getFilesystem($ident);
+        $this->currentFilesystem      = $this->getFilesystem($ident);
         $this->currentFilesystemIdent = $ident;
 
         return $this;
@@ -117,7 +162,7 @@ class FilePondService
      */
     public function setTargetFilesystem($ident)
     {
-        $this->targetFilesystem = $this->getFilesystem($ident);
+        $this->targetFilesystem      = $this->getFilesystem($ident);
         $this->targetFilesystemIdent = $ident;
 
         return $this;
@@ -151,9 +196,11 @@ class FilePondService
 
             return [
                 'ident' => $post->getFormat(),
-                'data'  => $post->getValues()
+                'data'  => $post->getValues(),
             ];
         }
+
+        return [];
     }
 
     /**
@@ -200,9 +247,11 @@ class FilePondService
 
             return [
                 'ident' => 'FILE_TRANSFER',
-                'data'  => $transfer
+                'data'  => $transfer,
             ];
         }
+
+        return [];
     }
 
     /**
@@ -212,7 +261,7 @@ class FilePondService
     {
         return [
             'ident' => 'REVERT_FILE_TRANSFER',
-            'data'  => file_get_contents('php://input')
+            'data'  => file_get_contents('php://input'),
         ];
     }
 
@@ -227,17 +276,19 @@ class FilePondService
         $handlers = [
             'fetch'   => 'FETCH_REMOTE_FILE',
             'restore' => 'RESTORE_FILE_TRANSFER',
-            'load'    => 'LOAD_LOCAL_FILE'
+            'load'    => 'LOAD_LOCAL_FILE',
         ];
 
         foreach ($handlers as $param => $handler) {
             if (isset($params[$param])) {
                 return [
                     'ident' => $handler,
-                    'data'  => $params[$param]
+                    'data'  => $params[$param],
                 ];
             }
         }
+
+        return null;
     }
 
     /**
@@ -248,7 +299,7 @@ class FilePondService
     public function storeTransfer($path, Transfer $transfer)
     {
         // create transfer directory
-        $path = $path . DIRECTORY_SEPARATOR . $transfer->getId();
+        $path       = $path.DIRECTORY_SEPARATOR.$transfer->getId();
         $filesystem = $this->currentFilesystem();
 
         if (!$filesystem->has($path)) {
@@ -257,14 +308,14 @@ class FilePondService
         // store metadata
         if ($transfer->getMetadata()) {
             $filesystem->write(
-                $path . DIRECTORY_SEPARATOR . self::METADATA_FILENAME,
+                $path.DIRECTORY_SEPARATOR.self::METADATA_FILENAME,
                 @json_encode($transfer->getMetadata())
             );
         }
 
         // store main file
         $files = $transfer->getFiles();
-        $file = $files[0];
+        $file  = $files[0];
 
         $this->moveFile($file, $path);
 
@@ -302,9 +353,9 @@ class FilePondService
             return false;
         }
 
-        //@TODO remove the variant container if implemented
+        // @TODO remove the variant container if implemented
 
-        return $this->removeDirectory($path . DIRECTORY_SEPARATOR . $id);
+        return $this->removeDirectory($path.DIRECTORY_SEPARATOR.$id);
     }
 
     /**
@@ -318,7 +369,7 @@ class FilePondService
             return $this->moveTempFile($file, $path);
         }
 
-        $filePath = $path . DIRECTORY_SEPARATOR . $file['name'];
+        $filePath = $path.DIRECTORY_SEPARATOR.$file['name'];
         // OVERWRITE FILES
         if ($this->currentFilesystem()->has($filePath)) {
             $this->currentFilesystem()->delete($filePath);
@@ -328,8 +379,8 @@ class FilePondService
             $this->targetFilesystemIdent !== $this->currentFilesystemIdent
         ) {
             $success = $this->mountManager->copy(
-                $this->currentFilesystemIdent . '://' . $file['tmp_name'],
-                $this->targetFilesystemIdent . '://' . $filePath
+                $this->currentFilesystemIdent.'://'.$file['tmp_name'],
+                $this->targetFilesystemIdent.'://'.$filePath
             );
 
             if ($success) {
@@ -349,9 +400,11 @@ class FilePondService
      */
     private function moveTempFile(array $file, $path)
     {
-        return move_uploaded_file($file['tmp_name'], $this->currentFileAdapter()->applyPathPrefix(
-            Util::normalizePath($path . DIRECTORY_SEPARATOR . $file['name'])
-        ));
+        $target = $this->currentFileAdapter()->applyPathPrefix(
+            Util::normalizePath($path.DIRECTORY_SEPARATOR.$file['name'])
+        );
+
+        return $this->currentFilesystem()->write($target, file_get_contents($file['tmp_name']));
     }
 
     /**
@@ -378,11 +431,11 @@ class FilePondService
         }
 
         $transfer = new Transfer($id);
-        $path = $path . DIRECTORY_SEPARATOR . $id;
+        $path     = $path.DIRECTORY_SEPARATOR.$id;
 
-        $file = $this->getFile($path, '*.*');
+        $file     = $this->getFile($path, '*.*');
         $metadata = $this->getFile($path, self::METADATA_FILENAME);
-        //TODO get file variants if implemented.
+        // TODO get file variants if implemented.
 
         $transfer->restore($file, [], $metadata);
 
@@ -403,7 +456,7 @@ class FilePondService
         $results = [];
 
         if ($pattern) {
-            $path = $path . DIRECTORY_SEPARATOR . $pattern;
+            $path = $path.DIRECTORY_SEPARATOR.$pattern;
         }
 
         if ($filesystem) {
@@ -451,7 +504,7 @@ class FilePondService
             'name'     => basename($filename),
             'type'     => mime_content_type($filename),
             'length'   => filesize($filename),
-            'error'    => 0
+            'error'    => 0,
         ];
     }
 
@@ -465,10 +518,10 @@ class FilePondService
 
         try {
             $content = $fs->readStream($filename);
-            $type = $fs->getMimetype($filename);
-            $size = $fs->getSize($filename);
+            $type    = $fs->getMimetype($filename);
+            $size    = $fs->getSize($filename);
         } catch (FileNotFoundException $e) {
-            //Add some logging.
+            // Add some logging.
 
             return false;
         }
@@ -483,7 +536,7 @@ class FilePondService
             'content'  => $content,
             'type'     => $type,
             'length'   => $size,
-            'error'    => 0
+            'error'    => 0,
         ];
     }
 }

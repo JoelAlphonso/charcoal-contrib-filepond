@@ -3,7 +3,6 @@
 namespace Charcoal\FilePond\Action;
 
 // from 'charcoal-contrib-filepond'
-use Charcoal\FilePond\FilePondConfig;
 use Charcoal\FilePond\Service\Helper\Transfer;
 use Charcoal\FilePond\Service\FilePondService;
 
@@ -11,7 +10,6 @@ use Charcoal\FilePond\Service\FilePondService;
 use Charcoal\App\Action\AbstractAction;
 
 use InvalidArgumentException;
-use Pimple\Container;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Slim\Http\Stream;
@@ -26,15 +24,10 @@ class RequestAction extends AbstractAction
      */
     private $filePondService;
 
-    /**
-     * @var FilePondConfig $config
-     */
-    private $config;
-
     const HANDLERS = [
         'FILE_TRANSFER'        => 'handleFileTransfer',
         'REVERT_FILE_TRANSFER' => 'handleRevertFileTransfer',
-        'LOAD_LOCAL_FILE'      => 'handleLoadLocalFile'
+        'LOAD_LOCAL_FILE'      => 'handleLoadLocalFile',
     ];
 
     /**
@@ -45,9 +38,6 @@ class RequestAction extends AbstractAction
     {
         parent::__construct($data);
 
-        if (isset($data['config']) && $data['config'] instanceof FilePondConfig) {
-            $this->config = $data['config'];
-        }
         $this->filePondService  = $data['filePondService'];
     }
 
@@ -93,7 +83,7 @@ class RequestAction extends AbstractAction
             return $response->withStatus(400);
         }
         // store files
-        $this->filePondService->storeTransfer($this->config->transferDir(), $transfer);
+        $this->filePondService->storeTransfer($this->filePondService->getServer()->transferDir(), $transfer);
 
         // returns plain text content
         $response->getBody()->write($transfer->getId());
@@ -111,11 +101,11 @@ class RequestAction extends AbstractAction
     {
         // test if id was supplied
         if (!isset($id) || !$this->filePondService->isValidTransferId($id)) {
-            return http_response_code(400);
+            return $response->withStatus(400);
         }
 
         // remove transfer directory
-        $this->filePondService->removeTransferDirectory($this->config->transferDir(), $id);
+        $this->filePondService->removeTransferDirectory($this->filePondService->getServer()->transferDir(), $id);
 
         // no content to return
         return $response->withStatus(204);

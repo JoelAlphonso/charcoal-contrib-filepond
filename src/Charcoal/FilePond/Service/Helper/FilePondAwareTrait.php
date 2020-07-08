@@ -3,7 +3,6 @@
 namespace Charcoal\FilePond\Service\Helper;
 
 use Charcoal\Factory\FactoryInterface;
-use Charcoal\FilePond\FilePondConfig;
 use Charcoal\FilePond\Service\FilePondService;
 use Charcoal\Model\ModelInterface;
 use Charcoal\Property\FileProperty;
@@ -20,18 +19,13 @@ trait FilePondAwareTrait
      * @var array $filePondHandlers The possible FilePond handlers.
      */
     protected $filePondHandlers = [
-        'TRANSFER_IDS' => 'handleTransferIds'
+        'TRANSFER_IDS' => 'handleTransferIds',
     ];
 
     /**
      * @var FilePondService $filePondService
      */
     private $filePondService;
-
-    /**
-     * @var FilePondConfig $config
-     */
-    private $filePondConfig;
 
     /**
      * @var string $filePondUploadPath
@@ -120,7 +114,7 @@ trait FilePondAwareTrait
     protected function handleSingleTransferId($id)
     {
         $out = [];
-        $transferDir = $this->filePondConfig()->transferDir();
+        $transferDir = $this->filePondService()->getServer()->transferDir();
 
         // create transfer wrapper around upload
         $transfer = $this->filePondService()->getTransfer($transferDir, $id);
@@ -134,7 +128,7 @@ trait FilePondAwareTrait
         $files = $transfer->getFiles(null);
         foreach ($files as $file) {
             if ($this->filePondService()->moveFile($file, $this->filePondUploadPath())) {
-                $out[] = $this->filePondUploadPath() . DIRECTORY_SEPARATOR . $file['name'];
+                $out[] = $this->filePondUploadPath().DIRECTORY_SEPARATOR.$file['name'];
             }
         }
         // remove transfer directory
@@ -151,7 +145,7 @@ trait FilePondAwareTrait
     {
         $out = [];
 
-        $transferDir = $this->filePondConfig()->transferDir();
+        $transferDir = $this->filePondService()->getServer()->transferDir();
 
         foreach ($ids as $id) {
             // create transfer wrapper around upload
@@ -167,7 +161,7 @@ trait FilePondAwareTrait
             $files = $transfer->getFiles(null);
             foreach ($files as $file) {
                 if ($this->filePondService()->moveFile($file, $this->filePondUploadPath())) {
-                    $out[] = $this->filePondUploadPath() . DIRECTORY_SEPARATOR . $file['name'];
+                    $out[] = $this->filePondUploadPath().DIRECTORY_SEPARATOR.$file['name'];
                 }
             }
             // remove transfer directory
@@ -184,7 +178,7 @@ trait FilePondAwareTrait
      */
     public function filePondUploadPath()
     {
-        return ($this->filePondUploadPath) ?: $this->filePondConfig()->uploadPath();
+        return ($this->filePondUploadPath) ?: $this->filePondService()->getServer()->uploadPath();
     }
 
     /**
@@ -224,33 +218,6 @@ trait FilePondAwareTrait
     public function setFilePondService(FilePondService $filePondService)
     {
         $this->filePondService = $filePondService;
-
-        return $this;
-    }
-
-    /**
-     * @return FilePondConfig
-     * @throws RuntimeException If the FilePondConfig is missing.
-     */
-    public function filePondConfig()
-    {
-        if (!isset($this->filePondConfig)) {
-            throw new RuntimeException(sprintf(
-                'FilePond Config is not defined for [%s]',
-                get_class($this)
-            ));
-        }
-
-        return $this->filePondConfig;
-    }
-
-    /**
-     * @param FilePondConfig $filePondConfig FilePondConfig for FilePondAwareTrait.
-     * @return self
-     */
-    public function setFilePondConfig(FilePondConfig $filePondConfig)
-    {
-        $this->filePondConfig = $filePondConfig;
 
         return $this;
     }

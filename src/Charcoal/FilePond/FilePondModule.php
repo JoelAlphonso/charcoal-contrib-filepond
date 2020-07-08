@@ -37,56 +37,56 @@ class FilePondModule extends AbstractModule
         $FilePondServiceProvider = new FilePondServiceProvider();
         $container->register($FilePondServiceProvider);
 
-        $filePondConfig = $container['file-pond/config'];
-        $this->setConfig($filePondConfig);
+        $servers = $container['file-pond/config']->getServers();
 
-        $serverEndPoint = $this->config('server_end_point');
+        foreach ($servers as $serverIdent => $server) {
+            $route = $server['route'];
 
-        if (!is_string($serverEndPoint)) {
-            throw new RuntimeException(sprintf(
-                'Invalid type for \'server_end_point\'. Expected \'string\', but got [%s] in [%s]',
-                gettype($serverEndPoint),
-                get_class($this)
-            ));
+            if (!is_string($route)) {
+                throw new RuntimeException(sprintf(
+                    'Invalid type for \'route\'. Expected \'string\', but got [%s] in [%s]',
+                    gettype($route),
+                    get_class($this)
+                ));
+            }
+
+            $route = '/'.ltrim($route, '\/ ');
+
+            $this->app()->group(rtrim($route, '/'), function (App $app) use ($serverIdent) {
+                $app->get('', function (Request $request, Response $response) use ($serverIdent) {
+                    /** @var Container $container */
+                    $container = $this;
+                    $action    = new RequestAction([
+                        'logger'          => $container['logger'],
+                        'filePondService' => $container['file-pond/service']($serverIdent),
+                    ]);
+
+                    return $action($request, $response);
+                });
+
+                $app->post('', function (Request $request, Response $response) use ($serverIdent) {
+                    /** @var Container $container */
+                    $container = $this;
+                    $action    = new RequestAction([
+                        'logger'          => $container['logger'],
+                        'filePondService' => $container['file-pond/service']($serverIdent),
+                    ]);
+
+                    return $action($request, $response);
+                });
+
+                $app->delete('', function (Request $request, Response $response) use ($serverIdent) {
+                    /** @var Container $container */
+                    $container = $this;
+                    $action    = new RequestAction([
+                        'logger'          => $container['logger'],
+                        'filePondService' => $container['file-pond/service']($serverIdent),
+                    ]);
+
+                    return $action($request, $response);
+                });
+            });
         }
-
-        $serverEndPoint = '/' . ltrim($serverEndPoint, '\/ ');
-
-        $this->app()->group(rtrim($serverEndPoint, '/'), function (App $app) {
-            $app->get('', function (Request $request, Response $response) {
-                /** @var Container $container */
-                $container = $this;
-                $action = new RequestAction([
-                    'logger'            => $container['logger'],
-                    'filePondService'   => $container['file-pond/service'],
-                ]);
-
-                return $action($request, $response);
-            });
-            $app->post('', function (Request $request, Response $response) {
-                /** @var Container $container */
-                $container = $this;
-                $action = new RequestAction([
-                    'logger'            => $container['logger'],
-                    'config'            => $container['file-pond/config'],
-                    'filePondService'   => $container['file-pond/service'],
-                ]);
-
-                return $action($request, $response);
-            });
-
-            $app->delete('', function (Request $request, Response $response) {
-                /** @var Container $container */
-                $container = $this;
-                $action = new RequestAction([
-                    'logger'            => $container['logger'],
-                    'config'            => $container['file-pond/config'],
-                    'filePondService'   => $container['file-pond/service'],
-                ]);
-
-                return $action($request, $response);
-            });
-        });
 
         return $this;
     }
