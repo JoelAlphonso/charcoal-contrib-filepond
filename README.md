@@ -183,7 +183,7 @@ handleTransfer() for reference :
  * If possible, it will try to :
  * - fetch the upload path from the property.
  * - fetch the filesystem based on the public access of the property.
- * - Pass it through the best processor depending on wether their were ids passed or not.
+ * - Pass it through the best processor depending on whether their were ids passed or not.
  *
  * @param string|array|null             $ids        The uploaded files ids. Let to null to force $_FILES and $_POST.
  * @param string|PropertyInterface|null $property   The property ident or a property.
