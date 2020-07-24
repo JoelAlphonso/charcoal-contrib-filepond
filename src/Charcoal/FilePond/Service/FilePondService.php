@@ -33,6 +33,9 @@ class FilePondService
     // name to use for the file metadata object
     const METADATA_FILENAME = '.metadata';
 
+    // name to use for the file metadata object
+    const METADATA_FILENAME_PATTERN = '\.metadata';
+
     /**
      * @var FilesystemInterface $currentFilesystem
      */
@@ -276,7 +279,7 @@ class FilePondService
         $handlers = [
             'fetch'   => 'FETCH_REMOTE_FILE',
             'restore' => 'RESTORE_FILE_TRANSFER',
-            'load'    => 'LOAD_LOCAL_FILE',
+            'load'    => 'FILE_LOAD',
         ];
 
         foreach ($handlers as $param => $handler) {
@@ -433,11 +436,11 @@ class FilePondService
         $transfer = new Transfer($id);
         $path     = $path.DIRECTORY_SEPARATOR.$id;
 
-        $file     = $this->getFile($path, '*.*');
-        $metadata = $this->getFile($path, self::METADATA_FILENAME);
+        $file     = $this->getFile($path, '.+\..+');
+        $metadata = $this->getFile($path, self::METADATA_FILENAME_PATTERN);
         // TODO get file variants if implemented.
 
-        $transfer->restore($file, [], $metadata);
+        $transfer->restore($file, [], $metadata ?? []);
 
         return $transfer;
     }
@@ -446,32 +449,31 @@ class FilePondService
     // ==========================================================================
 
     /**
-     * @param string      $path       The file path.
-     * @param string      $pattern    The file pattern.
+     * @param string      $directory  The file directory.
+     * @param string      $pattern    The file name pattern.
      * @param string|null $filesystem The filesystem ident to use.
      * @return array
      */
-    private function getFiles($path, $pattern = null, $filesystem = null)
+    private function getFiles($directory, $pattern = null, $filesystem = null)
     {
-        $results = [];
+        $fs = ($filesystem) ? $this->getFilesystem($filesystem) : $this->currentFilesystem();
+
+        $path = ($pattern) ? preg_quote($directory.DIRECTORY_SEPARATOR, '/').$pattern : $directory;
+        $path = $fs->getAdapter()->applyPathPrefix($path);
 
         if ($pattern) {
-            $path = $path.DIRECTORY_SEPARATOR.$pattern;
-        }
+            $files = $fs->listContents($directory);
 
-        if ($filesystem) {
-            $files = glob($this->getFilesystem($filesystem)
-                               ->getAdapter()
-                               ->applyPathPrefix($path));
+            $files = array_filter($files, function ($file) use ($path) {
+                return preg_match('/'.$path.'/U', $file['path']);
+            });
+
+            return array_map(function ($path) use ($filesystem) {
+                return $this->createFileObject($path, $filesystem);
+            }, array_column($files, 'path'));
         } else {
-            $files = glob($this->currentFileAdapter()->applyPathPrefix($path));
+            return $fs->has($path) ? [$this->createFileObject($path, $filesystem)] : [];
         }
-
-        foreach ($files as $file) {
-            $results[] = $this->createFileObject($file);
-        }
-
-        return $results;
     }
 
     /**
@@ -483,6 +485,7 @@ class FilePondService
     public function getFile($path, $pattern = null, $filesystem = null)
     {
         $result = $this->getFiles($path, $pattern, $filesystem);
+
         if (count($result) > 0) {
             return $result[0];
         }
@@ -495,15 +498,15 @@ class FilePondService
      */
     private function createFileObject($filename, $filesystem = null)
     {
-        $adapter = $filesystem ?
-            $this->getFilesystem($filesystem)->getAdapter() :
-            $this->currentFileAdapter();
+        $fs = ($filesystem) ? $this->getFilesystem($filesystem) : $this->currentFilesystem();
+        $adapter = $fs->getAdapter();
+        $fileMetadata = $fs->getMetadata($filename);
 
         return [
             'tmp_name' => $adapter->removePathPrefix($filename),
-            'name'     => basename($filename),
-            'type'     => mime_content_type($filename),
-            'length'   => filesize($filename),
+            'name'     => $fileMetadata['basename'],
+            'type'     => $fileMetadata['mimetype'],
+            'length'   => $fileMetadata['size'],
             'error'    => 0,
         ];
     }
@@ -518,8 +521,7 @@ class FilePondService
 
         try {
             $content = $fs->readStream($filename);
-            $type    = $fs->getMimetype($filename);
-            $size    = $fs->getSize($filename);
+            $fileMetadata = $fs->getMetadata($filename);
         } catch (FileNotFoundException $e) {
             // Add some logging.
 
@@ -532,10 +534,10 @@ class FilePondService
 
         return [
             'tmp_name' => $filename,
-            'name'     => basename($filename),
+            'name'     => $fileMetadata['basename'],
             'content'  => $content,
-            'type'     => $type,
-            'length'   => $size,
+            'type'     => $fileMetadata['mimetype'],
+            'length'   => $fileMetadata['size'],
             'error'    => 0,
         ];
     }

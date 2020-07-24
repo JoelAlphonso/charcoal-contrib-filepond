@@ -27,7 +27,7 @@ class RequestAction extends AbstractAction
     const HANDLERS = [
         'FILE_TRANSFER'        => 'handleFileTransfer',
         'REVERT_FILE_TRANSFER' => 'handleRevertFileTransfer',
-        'LOAD_LOCAL_FILE'      => 'handleLoadLocalFile',
+        'FILE_LOAD'            => 'handleFileLoad',
     ];
 
     /**
@@ -116,7 +116,7 @@ class RequestAction extends AbstractAction
      * @param ResponseInterface $response A PSR-7 compatible Response instance.
      * @return ResponseInterface
      */
-    private function handleLoadLocalFile($file, ResponseInterface $response)
+    private function handleFileLoad($file, ResponseInterface $response)
     {
         // read file object
         if (is_string($file)) {
