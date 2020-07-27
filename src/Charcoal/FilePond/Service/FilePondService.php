@@ -92,7 +92,7 @@ class FilePondService
 
         // Default server
         $this->setServer('default');
-        $this->setCurrentFilesystem($this->getServer()->filesystemIdent());
+        $this->setCurrentFilesystem();
     }
 
     /**
@@ -107,7 +107,7 @@ class FilePondService
         $this->setServer($server);
 
         // Default to config filesystem.
-        $this->setCurrentFilesystem($this->getServer()->filesystemIdent());
+        $this->setCurrentFilesystem();
 
         return $this;
     }
@@ -140,11 +140,14 @@ class FilePondService
     }
 
     /**
-     * @param string $ident Files system ident.
+     * @param string|null $ident Files system ident. Default to filesystem from server.
      * @return self
      */
-    public function setCurrentFilesystem($ident)
+    public function setCurrentFilesystem($ident = null)
     {
+        if (!$ident) {
+            $ident = $this->getServer()->filesystemIdent();
+        }
         $this->currentFilesystem      = $this->getFilesystem($ident);
         $this->currentFilesystemIdent = $ident;
 
@@ -459,19 +462,19 @@ class FilePondService
         $fs = ($filesystem) ? $this->getFilesystem($filesystem) : $this->currentFilesystem();
 
         $path = ($pattern) ? preg_quote($directory.DIRECTORY_SEPARATOR, '/').$pattern : $directory;
-        $path = $fs->getAdapter()->applyPathPrefix($path);
 
         if ($pattern) {
-            $files = $fs->listContents($directory);
+            $files = $fs->listContents($fs->getAdapter()->applyPathPrefix($directory));
 
             $files = array_filter($files, function ($file) use ($path) {
                 return preg_match('/'.$path.'/U', $file['path']);
             });
 
-            return array_map(function ($path) use ($filesystem) {
-                return $this->createFileObject($path, $filesystem);
+            return array_map(function ($path) use ($fs, $filesystem) {
+                return $this->createFileObject($fs->getAdapter()->applyPathPrefix($path), $filesystem);
             }, array_column($files, 'path'));
         } else {
+            $path = $fs->getAdapter()->applyPathPrefix($path);
             return $fs->has($path) ? [$this->createFileObject($path, $filesystem)] : [];
         }
     }
@@ -504,8 +507,8 @@ class FilePondService
 
         return [
             'tmp_name' => $adapter->removePathPrefix($filename),
-            'name'     => $fileMetadata['basename'],
-            'type'     => $fileMetadata['mimetype'],
+            'name'     => ($fileMetadata['basename'] ?? basename($filename)),
+            'type'     => ($fileMetadata['mimetype'] ?? mime_content_type($filename)),
             'length'   => $fileMetadata['size'],
             'error'    => 0,
         ];
